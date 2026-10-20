@@ -38,6 +38,7 @@ export function createBoatSandboxPlugin(
       currentSettings,
       now: deps.now,
       sleep: deps.sleep,
+      log: (message) => bb.log.info(message),
     });
     bb.onDispose(() => backend.close());
 

@@ -51,6 +51,8 @@ export interface BoatSandboxBackendDeps {
   currentSettings: () => Promise<SettingsResolution>;
   now: () => number;
   sleep: (delayMs: number) => Promise<void>;
+  /** Plugin log (bb plugin logs): ids and states only, never secrets. */
+  log?: (message: string) => void;
 }
 
 const LIVE_TIMEOUT_MS = 10 * 60_000;
@@ -108,6 +110,7 @@ export function createBoatSandboxBackend(
   deps: BoatSandboxBackendDeps,
 ): BoatSandboxBackend {
   let cached: { apiKey: string; client: BoatClient } | null = null;
+  const log = deps.log ?? (() => {});
 
   async function requireSettings(): Promise<ResolvedSettings> {
     const resolved = await deps.currentSettings();
@@ -261,6 +264,7 @@ export function createBoatSandboxBackend(
       await context.checkpoint(resource);
       await client.update(created.id, { name: allocationName(context.key) }, context.signal);
       context.report.log(`Boat sandbox ${created.id}\n`);
+      log(`create: sandbox ${created.id} for key ${allocationName(context.key)}`);
       context.report.step("Waiting for the sandbox to start…");
       await waitLive(client, created.id, context);
       const executor = executorFor(client, created.id);
@@ -281,6 +285,7 @@ export function createBoatSandboxBackend(
         if (exitCode !== 0) throw new Error(`The prepare script exited with ${exitCode}.`);
       }
       context.signal.throwIfAborted();
+      log(`create: sandbox ${created.id} is ready for bootstrap`);
       return { resource, executor };
     },
     async reconcileCleanup(context) {
@@ -290,6 +295,7 @@ export function createBoatSandboxBackend(
         context.signal.throwIfAborted();
         if (sandbox.name !== name) continue;
         context.report.log(`Deleting orphaned Boat sandbox ${sandbox.id}\n`);
+        log(`cleanup: deleting orphaned sandbox ${sandbox.id}`);
         await client.deleteSandbox(sandbox.id, context.signal);
       }
     },
@@ -310,6 +316,7 @@ export function createBoatSandboxBackend(
       }
       await waitStopped(client, sandboxId, context);
       context.report.log(`Stopped Boat sandbox ${sandboxId}\n`);
+      log(`suspend: sandbox ${sandboxId} stopped`);
       return context.resource;
     },
     async resume(context) {
@@ -333,12 +340,14 @@ export function createBoatSandboxBackend(
         await client.update(sandboxId, { ttlSeconds: settings.ttlSeconds }, context.signal);
       }
       await waitLive(client, sandboxId, context);
+      log(`resume: sandbox ${sandboxId} is live (was ${sandbox.state})`);
       return { resource: context.resource, executor: executorFor(client, sandboxId) };
     },
     async remove(context) {
       const client = await pinnedClient(context.resource);
       const { sandboxId } = context.resource;
       const operationId = await client.deleteSandbox(sandboxId, context.signal);
+      log(`remove: sandbox ${sandboxId} ${operationId === null ? "was already gone" : `deletion ${operationId}`}`);
       if (operationId === null) return;
       const deadline = deps.now() + DELETE_TIMEOUT_MS;
       for (;;) {
