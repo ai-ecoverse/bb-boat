@@ -1,0 +1,54 @@
+{
+  "name": "bb-plugin-boat-sandbox",
+  "version": "0.1.0",
+  "description": "Run bb threads on boat.dev sandboxes.",
+  "license": "MIT",
+  "type": "module",
+  "keywords": [
+    "bb",
+    "bb-plugin",
+    "boat",
+    "sandbox",
+    "machine-provider"
+  ],
+  "homepage": "https://github.com/ai-ecoverse/bb-boat#readme",
+  "bugs": {
+    "url": "https://github.com/ai-ecoverse/bb-boat/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ai-ecoverse/bb-boat.git"
+  },
+  "engines": {
+    "bb": ">=0.46",
+    "bbPluginSdk": ">=0.6.49"
+  },
+  "bb": {
+    "name": "Boat Sandbox [Experimental]",
+    "description": "Run bb threads on boat.dev sandboxes.",
+    "branding": {
+      "icon": "./assets/boat-logo.svg"
+    },
+    "server": "./server.ts",
+    "skills": [
+      "skills"
+    ]
+  },
+  "scripts": {
+    "build": "bb plugin build .",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@get-bb/plugin-sdk": "0.6.49",
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.3.0",
+    "hono": "^4.13.13",
+    "typescript": "^5.7.0",
+    "vitest": "4.1.11"
+  }
+}
