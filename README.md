@@ -74,6 +74,16 @@ incrementally by offset, so long installs are not cut off at Boat's 600-second
 limit for synchronous commands. Boat commands have no stdin; stdin goes through
 a mode-600 file in `/tmp` that the command deletes.
 
+## Agent credentials
+
+Boat injects the credentials of your credential profile (Claude or ChatGPT
+sign-ins, API keys, `claude-bedrock`, `codex-bedrock`, the GitHub token) into
+`/run/ascii-secrets/env.sh`, which only login shells source. bb's daemon runs as
+a systemd user service, so on each new sandbox the plugin installs a drop-in
+for `bb-host-daemon-*` units that turns that file into an `EnvironmentFile`
+before every daemon start. Agents that bb starts on the sandbox then see the
+same credentials as `boat ssh`. Configure them on Boat's Agents & Proxying page.
+
 ## Templates
 
 `from` can name a snapshot with your tools, agent logins or configuration
