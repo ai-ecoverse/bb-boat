@@ -23,10 +23,12 @@ bb plugin install git:github.com/ai-ecoverse/bb-boat
 ```
 
 Create a Boat API key and enter it as `apiKey` in Settings → Plugins → Boat
-Sandbox. The key is a plugin secret and is never sent to the frontend.
+Sandbox. The key is a plugin secret and is never sent to the frontend. The
+`ci` preset grants what the plugin needs: create, resume, stop and delete of
+the sandboxes this key created. `full-sandbox` cannot create sandboxes.
 
 ```sh
-boat api-key create bb --preset full-sandbox
+boat api-key create bb --preset ci
 ```
 
 Then pick **Boat Sandbox** as the environment of a new thread, or:
