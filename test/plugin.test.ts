@@ -176,10 +176,15 @@ describe("backend lifecycle", () => {
     expect(post.headers["Idempotency-Key"]).toBe(idempotencyKey("machine-key"));
     expect(post.body).toEqual({ ttlSeconds: 7200, type: "default" });
     expect(boat.sandboxes.get("bx_1")!.name).toBe(allocationName("machine-key"));
-    expect(boat.processes.size).toBe(0);
+    const scripts = [...boat.processes.values()].map((p) => p.script);
+    expect(scripts).toHaveLength(1);
+    expect(scripts[0]).toContain("bb-host-daemon-.service.d");
+    expect(scripts[0]).toContain("boat-env.conf");
+    expect(scripts[0]).toContain("/run/ascii-secrets/env.sh");
 
     const again = await backend.create(ctx.value);
     expect(again.resource.sandboxId).toBe("bx_1");
+    expect(boat.processes.size).toBe(2);
     expect(boat.sandboxes.size).toBe(1);
   });
 
@@ -191,15 +196,21 @@ describe("backend lifecycle", () => {
     const post = boat.requests.find((r) => r.method === "POST" && r.path === "/sandboxes")!;
     expect(post.body).toMatchObject({ from: "bb-pi-bedrock", type: "small" });
     const scripts = [...boat.processes.values()].map((p) => p.script);
-    expect(scripts).toHaveLength(2);
+    expect(scripts).toHaveLength(3);
     expect(scripts[0]).toContain(".bb-machines");
-    expect(scripts[1]).toContain("echo prepared");
+    expect(scripts[1]).toContain("boat-env.conf");
+    expect(scripts[2]).toContain("echo prepared");
   });
 
   it("fails create when the prepare script fails", async () => {
     const boat = new FakeBoat();
-    boat.run = () => ({ stdout: "", stderr: "nope", exitCode: 7, pollsUntilDone: 0 });
-    const backend = backendFor(boat, { prepareScript: "false" });
+    boat.run = (script) => ({
+      stdout: "",
+      stderr: "",
+      exitCode: script.includes("exit 7") ? 7 : 0,
+      pollsUntilDone: 0,
+    });
+    const backend = backendFor(boat, { prepareScript: "exit 7" });
     const ctx = context({ key: "k3", attempt: 1, inputs: {} });
     await expect(backend.create(ctx.value)).rejects.toThrow("The prepare script exited with 7.");
   });

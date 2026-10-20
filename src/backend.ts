@@ -90,6 +90,27 @@ export const IDENTITY_SCRUB_SCRIPT = [
   'rm -rf "$HOME/.bb-machines"',
 ].join("\n");
 
+/**
+ * Boat injects agent credentials (Bedrock, GitHub token, API keys) into
+ * /run/ascii-secrets/env.sh, which only login shells source. bb's daemon runs
+ * as a systemd user service, so a prefix drop-in for every bb-host-daemon-*
+ * unit converts that file into an EnvironmentFile before each start. It is
+ * rebuilt on every start, so rotated credentials apply after a resume.
+ */
+export const BOAT_ENV_BRIDGE_SCRIPT = [
+  "set -eu",
+  'dir="$HOME/.config/systemd/user/bb-host-daemon-.service.d"',
+  'mkdir -p "$dir"',
+  "cat > \"$dir/boat-env.conf\" <<'UNIT'",
+  "# Written by the bb Boat Sandbox plugin: give the bb daemon the credentials",
+  "# Boat injects for login shells (/run/ascii-secrets/env.sh).",
+  "[Service]",
+  `ExecStartPre=-/bin/sh -c 'umask 077; if [ -r /run/ascii-secrets/env.sh ]; then sed -n "s/^export //p" /run/ascii-secrets/env.sh > "$XDG_RUNTIME_DIR/bb-boat-env"; else : > "$XDG_RUNTIME_DIR/bb-boat-env"; fi'`,
+  "EnvironmentFile=-%t/bb-boat-env",
+  "UNIT",
+  "systemctl --user daemon-reload",
+].join("\n");
+
 async function runScript(
   executor: MachineExecutor,
   script: string,
@@ -273,6 +294,10 @@ export function createBoatSandboxBackend(
         if ((await runScript(executor, IDENTITY_SCRUB_SCRIPT, context, 120_000)) !== 0) {
           throw new Error("Could not remove bb state copied from the snapshot.");
         }
+      }
+      context.report.step("Passing Boat credentials to the bb daemon…");
+      if ((await runScript(executor, BOAT_ENV_BRIDGE_SCRIPT, context, 120_000)) !== 0) {
+        throw new Error("Could not install the Boat credential bridge for the bb daemon.");
       }
       if (settings.prepareScript !== null) {
         context.report.step("Running the prepare script…");
