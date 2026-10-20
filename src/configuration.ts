@@ -56,6 +56,13 @@ export const SETTING_DESCRIPTORS = {
       "Shell script run as the sandbox user on each new sandbox before bb installs its daemon, for example to adjust agent configuration.",
     default: "",
   },
+  registerAgents: {
+    type: "boolean",
+    label: "Register Boat's ACP agents",
+    description:
+      "Add Kimi Code (acp-kimi) and Mistral Vibe (acp-mistral-vibe), which Boat sandboxes ship, as custom agents of the ACP providers plugin. They run wherever their command is installed.",
+    default: true,
+  },
 } as const;
 
 export const SANDBOX_TYPES = ["small", "default", "large", "xlarge"] as const;
@@ -85,6 +92,7 @@ export interface RawSettings {
   autoStopHours: number;
   idleMinutes: number;
   prepareScript: string;
+  registerAgents?: boolean;
 }
 
 const MAX_AUTO_STOP_HOURS = 30 * 24;

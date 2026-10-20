@@ -84,6 +84,24 @@ for `bb-host-daemon-*` units that turns that file into an `EnvironmentFile`
 before every daemon start. Agents that bb starts on the sandbox then see the
 same credentials as `boat ssh`. Configure them on Boat's Agents & Proxying page.
 
+## Agents on Boat sandboxes
+
+Boat sandboxes ship Claude Code, Codex, pi, OpenCode, Kimi Code and Mistral
+Vibe (plus Cursor Agent and Hermes). bb already has providers for the first
+four. The plugin registers the other two as custom agents of bb's ACP
+providers plugin:
+
+| Provider | Command | Credentials on Boat |
+| --- | --- | --- |
+| `acp-kimi` (Kimi Code) | `kimi acp` | Moonshot API key or Kimi sign-in |
+| `acp-mistral-vibe` (Mistral Vibe) | `vibe-acp` | Mistral API key or Vibe sign-in |
+
+The entries use bare command names, so bb resolves them on the machine a thread
+runs on: the server does not need either CLI. Boat installs Vibe on its first
+run, so the first Vibe session on a new sandbox takes about a minute longer.
+Turn `registerAgents` off to remove the entries; keys you add to them yourself
+(`env`, `modelCli`, ...) are kept while they are registered.
+
 ## Templates
 
 `from` can name a snapshot with your tools, agent logins or configuration

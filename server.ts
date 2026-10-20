@@ -1,6 +1,13 @@
 import { z } from "zod";
 import type { BbPluginApi } from "@get-bb/plugin-sdk";
 import type { FetchLike } from "./src/boat-client.js";
+import {
+  ACP_PLUGIN_ID,
+  parseCustomAgents,
+  stringifyCustomAgents,
+  withBoatAgents,
+  withoutBoatAgents,
+} from "./src/acp-agents.js";
 import { createBoatSandboxBackend } from "./src/backend.js";
 import { resolveSettings, SETTING_DESCRIPTORS } from "./src/configuration.js";
 import { errorMessage } from "./src/error-message.js";
@@ -95,7 +102,43 @@ export function createBoatSandboxPlugin(
     // Boat stops a sandbox at its auto-stop deadline without telling bb. Extend
     // busy sandboxes before that, suspend idle ones through core, and hand
     // sandboxes Boat already stopped to core so its record matches.
+    // The ACP providers plugin can start after this one, so the first sync
+    // retries and the minute schedule keeps the entries in step with the
+    // registerAgents setting.
+    async function syncAgents(): Promise<boolean> {
+      const register = (await settings.get()).registerAgents !== false;
+      let current;
+      try {
+        current = await bb.sdk.plugins.getSettings({ pluginId: ACP_PLUGIN_ID });
+      } catch {
+        return false;
+      }
+      const agents = parseCustomAgents(current.values.customAgents);
+      const next = register ? withBoatAgents(agents) : withoutBoatAgents(agents);
+      if (!next.changed) return true;
+      await bb.sdk.plugins.updateSettings({
+        pluginId: ACP_PLUGIN_ID,
+        values: { customAgents: stringifyCustomAgents(next.agents) },
+      });
+      bb.log.info(register ? "Registered Boat's ACP agents" : "Removed Boat's ACP agents");
+      return true;
+    }
+    void (async () => {
+      for (let attempt = 0; attempt < 20; attempt += 1) {
+        try {
+          if (await syncAgents()) return;
+        } catch (error) {
+          bb.log.warn(`ACP agent registration failed: ${errorMessage(error)}`);
+          return;
+        }
+        await deps.sleep(1_000);
+      }
+    })();
+
     bb.background.schedule("boat-lifecycle", "* * * * *", async () => {
+      await syncAgents().catch((error) =>
+        bb.log.warn(`ACP agent registration failed: ${errorMessage(error)}`),
+      );
       const resolved = await currentSettings();
       if (!resolved.ok) return;
       const { idleMs, ttlSeconds } = resolved.settings;
