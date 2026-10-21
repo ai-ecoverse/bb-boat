@@ -44,7 +44,7 @@
   },
   "devDependencies": {
     "@get-bb/plugin-sdk": "0.6.60",
-    "@types/better-sqlite3": "^7.6.13",
+    "@types/better-sqlite3": "^9.0.0",
     "@types/node": "26.6.5",
     "@types/react": "^19.3.0",
     "hono": "^4.13.13",
