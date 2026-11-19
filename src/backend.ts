@@ -81,12 +81,17 @@ export function idempotencyKey(key: string): string {
  */
 export const IDENTITY_SCRUB_SCRIPT = [
   "set -u",
-  'for unit in $(systemctl --user list-unit-files --no-legend "bb-host-daemon-*" 2>/dev/null | cut -d" " -f1); do',
+  // pkill -f matches full command lines, and this script's text is the argv of
+  // the shell running it (and of any wrapper shell the executor adds). Build
+  // the daemon name from two pieces so the script text never contains it and
+  // pkill cannot match, and kill, its own shell (#42).
+  'daemon="bb-host-""daemon"',
+  'for unit in $(systemctl --user list-unit-files --no-legend "$daemon-*" 2>/dev/null | cut -d" " -f1); do',
   '  systemctl --user disable --now "$unit" >/dev/null 2>&1 || true',
   '  rm -f "$HOME/.config/systemd/user/$unit"',
   "done",
   "systemctl --user daemon-reload >/dev/null 2>&1 || true",
-  'pkill -u "$(id -u)" -f bb-host-daemon >/dev/null 2>&1 || true',
+  'pkill -u "$(id -u)" -f "$daemon" >/dev/null 2>&1 || true',
   'rm -rf "$HOME/.bb-machines"',
 ].join("\n");
 
